@@ -117,8 +117,9 @@ public class RemotingUtil {
                     if (ip.startsWith("127.0") || ip.startsWith("192.168")) {
                         continue;
                     }
-
-                    return ip;
+                    //FIXME: 这里是因为本地Mac有两个IPV4读到了有问题的，所以手动修改了地址
+                    return "10.206.22.100";
+//                    return ip;
                 }
 
                 return ipv4Result.get(ipv4Result.size() - 1);

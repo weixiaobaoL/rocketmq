@@ -44,13 +44,13 @@ public class Producer {
          * }
          * </pre>
          */
-
+        producer.setNamesrvAddr("10.206.22.100:9876");
         /*
          * Launch the instance.
          */
         producer.start();
 
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 1; i++) {
             try {
 
                 /*
