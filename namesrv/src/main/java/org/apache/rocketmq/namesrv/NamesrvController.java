@@ -75,15 +75,24 @@ public class NamesrvController {
 
     public boolean initialize() {
 
+        //region 大致推测可能就是在里面有一些kv配置数据，是这个组件管理的，然后这里可能就是从磁盘上加载了kv配置
         this.kvConfigManager.load();
+        //endregion
 
+        //region 核心逻辑: 构造了一个NettyRemotingServer，也就是Netty网络服务器。核心构建了Netty的EventLoopGroup对象，和负责处理请求业务的线程池
         this.remotingServer = new NettyRemotingServer(this.nettyServerConfig, this.brokerHousekeepingService);
+        //endregion
 
+        //region Netty服务器的核心工作线程池
         this.remotingExecutor =
             Executors.newFixedThreadPool(nettyServerConfig.getServerWorkerThreads(), new ThreadFactoryImpl("RemotingExecutorThread_"));
+        //endregion
 
+        //region 把工作线程池放入Netty服务器中
         this.registerProcessor();
+        //endregion
 
+        //region 启动一个后台线程，执行定时任务。根据名字猜测是和扫描哪些Broker没法送心跳。
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -91,7 +100,9 @@ public class NamesrvController {
                 NamesrvController.this.routeInfoManager.scanNotActiveBroker();
             }
         }, 5, 10, TimeUnit.SECONDS);
+        //endregion
 
+        //region 非核心逻辑: 启动一个后台线程，执行定时任务。定时打印所有的key-value配置信息。
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -99,7 +110,9 @@ public class NamesrvController {
                 NamesrvController.this.kvConfigManager.printAllPeriodically();
             }
         }, 1, 10, TimeUnit.MINUTES);
+        //endregion
 
+        //region 这个适合FileWatch相关的，主要用于TLS、证书相关相关的逻辑，前期遇见的时候直接跳过，不是我们关注的核心逻辑
         if (TlsSystemConfig.tlsMode != TlsMode.DISABLED) {
             // Register a listener to reload SslContext
             try {
@@ -137,6 +150,7 @@ public class NamesrvController {
                 log.warn("FileWatchService created error, can't load the certificate dynamically");
             }
         }
+        //endregion
 
         return true;
     }
@@ -153,11 +167,15 @@ public class NamesrvController {
     }
 
     public void start() throws Exception {
+        //region 核心逻辑: 真正启动NettyServer的服务
         this.remotingServer.start();
+        //endregion
 
+        //region 非核心逻辑: 这个看是否有FileWatchService，有的话就开启这个监听
         if (this.fileWatchService != null) {
             this.fileWatchService.start();
         }
+        //endregion
     }
 
     public void shutdown() {

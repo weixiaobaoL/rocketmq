@@ -73,10 +73,14 @@ public class NamesrvStartup {
                 因为平时我们写Java Web系统的时候，大家都喜欢用Spring MVC框架，在Spring MVC框架中，用于接受HTTP请求的，就是Controller组件！
              */
             NamesrvController controller = createNamesrvController(args);
+
             start(controller);
+
+            //region 无用代码，就是打印Name Server 启动成功了
             String tip = "The Name Server boot success. serializeType=" + RemotingCommand.getSerializeTypeConfigInThisServer();
             log.info(tip);
             System.out.printf("%s%n", tip);
+            //endregion
             return controller;
         } catch (Throwable e) {
             e.printStackTrace();
@@ -172,16 +176,24 @@ public class NamesrvStartup {
 
     public static NamesrvController start(final NamesrvController controller) throws Exception {
 
+        //region 无用代码: 正常流程里面的非空判断逻辑
         if (null == controller) {
             throw new IllegalArgumentException("NamesrvController is null");
         }
+        //endregion
 
+        //region 核心逻辑: NamesrvController执行了initialize初始化的操作把Netty服务器给初始化。还有就是启动一些后台线程处理一些心跳检查之类的逻辑
         boolean initResult = controller.initialize();
+        //endregion
+
+        //region 无用代码: 根据初始化的结果判断是否需要是正常初始化，如果不是就退出
         if (!initResult) {
             controller.shutdown();
             System.exit(-3);
         }
+        //endregion
 
+        //region 非核心逻辑: 用于当JVM要关闭的时候添加一个hook，当事件调用的时候触发一些controller的清理工作
         Runtime.getRuntime().addShutdownHook(new ShutdownHookThread(log, new Callable<Void>() {
             @Override
             public Void call() throws Exception {
@@ -189,8 +201,11 @@ public class NamesrvStartup {
                 return null;
             }
         }));
+        //endregion
 
+        //region 核心逻辑: 启动NettyServer
         controller.start();
+        //endregion
 
         return controller;
     }

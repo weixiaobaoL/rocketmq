@@ -22,7 +22,10 @@ public class NettyServerConfig implements Cloneable {
     private int listenPort = 8888;
     // Netty的工作线程数， 默认是8
     private int serverWorkerThreads = 8;
-    // Netty的public线程池的线程数量，默认是0
+    // Netty的public线程池的线程数量，默认是0，实际在使用的时候会有判断，会把0改为4
+    /**
+     * {@link org.apache.rocketmq.remoting.netty.NettyRemotingServer#NettyRemotingServer(org.apache.rocketmq.remoting.netty.NettyServerConfig, org.apache.rocketmq.remoting.ChannelEventListener)}
+     */
     private int serverCallbackExecutorThreads = 0;
     // Netty的IO线程池的线程数量，默认是3。这里的线程是解析网络请求的，这里解析完了网络请求后会让work线程去处理，做到netty的高并发
     private int serverSelectorThreads = 3;
