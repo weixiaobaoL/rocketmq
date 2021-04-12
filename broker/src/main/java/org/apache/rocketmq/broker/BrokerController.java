@@ -288,7 +288,7 @@ public class BrokerController {
         result = result && this.messageStore.load();
 
         if (result) {
-            //region 核心逻辑: Broker构建NettyRemotingServer对象用于接受别人的请求
+            //region 核心逻辑: Broker构建NettyRemotingServer对象用于接受别人的请求,构建了10911和10907(10911-2)
             this.remotingServer = new NettyRemotingServer(this.nettyServerConfig, this.clientHousekeepingService);
             NettyServerConfig fastConfig = (NettyServerConfig) this.nettyServerConfig.clone();
             fastConfig.setListenPort(nettyServerConfig.getListenPort() - 2);
@@ -379,8 +379,11 @@ public class BrokerController {
             //endregion
             //endregion
 
+            //region 核心逻辑: 给NettyServer绑定对应的处理逻辑。主要是把Processor和Executor绑定到NettyServer上去
             this.registerProcessor();
+            //endregion
 
+            //region 初始化负责请求的线程池和一些定时任务线程池
             final long initialDelay = UtilAll.computeNextMorningTimeMillis() - System.currentTimeMillis();
             final long period = 1000 * 60 * 60 * 24;
             //region 定时进行broker统计的任务
@@ -460,6 +463,7 @@ public class BrokerController {
                     }
                 }
             }, 1000 * 10, 1000 * 60, TimeUnit.MILLISECONDS);
+            //endregion
             //endregion
 
             //region 设置nameserver地址列表。要么通过配置的方式、要么通过发送请求去加载NameServer地址
