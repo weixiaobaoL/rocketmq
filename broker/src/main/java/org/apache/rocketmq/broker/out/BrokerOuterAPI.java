@@ -199,9 +199,12 @@ public class BrokerOuterAPI {
         final byte[] body
     ) throws RemotingCommandException, MQBrokerException, RemotingConnectException, RemotingSendRequestException, RemotingTimeoutException,
         InterruptedException {
+        //region 通过header和body构建发送请求的对象
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.REGISTER_BROKER, requestHeader);
         request.setBody(body);
+        //endregion
 
+        //region oneway去进行注册，这种方式是不会等待注册结果。前期先不看
         if (oneway) {
             try {
                 this.remotingClient.invokeOneway(namesrvAddr, request, timeoutMills);
@@ -210,8 +213,13 @@ public class BrokerOuterAPI {
             }
             return null;
         }
+        //endregion
 
+        //region 核心逻辑: 真正发送网络请求的逻辑，就是通过NettyClient进行发送注册请求。
         RemotingCommand response = this.remotingClient.invokeSync(namesrvAddr, request, timeoutMills);
+        //endregion
+
+        //region 处理网络请求的返回结果，其实就是把注册结果封装成了Result，保存了起来并且返回了Result。
         assert response != null;
         switch (response.getCode()) {
             case ResponseCode.SUCCESS: {
@@ -228,6 +236,7 @@ public class BrokerOuterAPI {
             default:
                 break;
         }
+        //endregion
 
         throw new MQBrokerException(response.getCode(), response.getRemark(), requestHeader == null ? null : requestHeader.getBrokerAddr());
     }

@@ -411,26 +411,39 @@ public abstract class NettyRemotingAbstract {
 
         try {
             final ResponseFuture responseFuture = new ResponseFuture(channel, opaque, timeoutMillis, null, null);
+            //这里做的就是一个记录当前这个请求,和responseFuture的记录关系,因为在异步的操作成功以后,需要对responseFuture这个对象进行一些修改
+            //netty initialize 添加了 NettyClientHandler -> processMessageReceived -> processResponseCommand 进行了修改
             this.responseTable.put(opaque, responseFuture);
             final SocketAddress addr = channel.remoteAddress();
+            //region 通过Channel把请求写出去，因为是异步的，所以通过的是回调的方式去做后续的操作
             channel.writeAndFlush(request).addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture f) throws Exception {
+                    //region 请求成功就记录状态返回
                     if (f.isSuccess()) {
                         responseFuture.setSendRequestOK(true);
                         return;
-                    } else {
+                    }
+                    //endregion
+
+                    //region 当请求报错的时候，记录报错信息
+                    else {
                         responseFuture.setSendRequestOK(false);
                     }
-
                     responseTable.remove(opaque);
                     responseFuture.setCause(f.cause());
                     responseFuture.putResponse(null);
                     log.warn("send a request command to channel <" + addr + "> failed.");
+                    //endregion
                 }
             });
+            //endregion
 
+            //region 等待请求返回结果
             RemotingCommand responseCommand = responseFuture.waitResponse(timeoutMillis);
+            //endregion
+
+            //region 当请求失败的时候，进行报错
             if (null == responseCommand) {
                 if (responseFuture.isSendRequestOK()) {
                     throw new RemotingTimeoutException(RemotingHelper.parseSocketAddressAddr(addr), timeoutMillis,
@@ -439,6 +452,7 @@ public abstract class NettyRemotingAbstract {
                     throw new RemotingSendRequestException(RemotingHelper.parseSocketAddressAddr(addr), responseFuture.getCause());
                 }
             }
+            //endregion
 
             return responseCommand;
         } finally {
