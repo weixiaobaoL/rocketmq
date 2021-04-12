@@ -260,6 +260,8 @@ public class BrokerStartup {
             MixAll.printObjectProperties(log, messageStoreConfig);
             //endregion
 
+            //region 核心逻辑: 核心对象通过4个核心配置对象构建了BrokerController对象.BrokerController去控制和管理Broker这个JVM进程运行过程中的一切行为，包括接收网络请求、包括管理磁盘上的消息数据，以及一大堆的后台线程的运行
+            /*存储4个核心配置对象/构建核心功能组件/构建后台线程池*/
             final BrokerController controller = new BrokerController(
                 brokerConfig,
                 nettyServerConfig,
@@ -267,6 +269,7 @@ public class BrokerStartup {
                 messageStoreConfig);
             // remember all configs to prevent discard
             controller.getConfiguration().registerConfig(properties);
+            //endregion
 
             boolean initResult = controller.initialize();
             if (!initResult) {

@@ -168,18 +168,30 @@ public class BrokerController {
     private Future<?> slaveSyncFuture;
     private Map<Class,AccessValidator> accessValidatorMap = new HashMap<Class, AccessValidator>();
 
+    /**
+     * 存储4个核心配置对象
+     * 构建核心功能组件
+     * 构建后台线程池
+     */
     public BrokerController(
         final BrokerConfig brokerConfig,
         final NettyServerConfig nettyServerConfig,
         final NettyClientConfig nettyClientConfig,
         final MessageStoreConfig messageStoreConfig
     ) {
+        //region 保存4个核心配置信息
         this.brokerConfig = brokerConfig;
         this.nettyServerConfig = nettyServerConfig;
         this.nettyClientConfig = nettyClientConfig;
         this.messageStoreConfig = messageStoreConfig;
+        //endregion
+
+        //region 构建一大堆Broker所需的功能组件，每个功能对应一个对象
+        //专门管理consumer消费offset的组件
         this.consumerOffsetManager = new ConsumerOffsetManager(this);
+        //专门管理topic的配置信息
         this.topicConfigManager = new TopicConfigManager(this);
+        //处理consumer发送请求过来拉去消息的
         this.pullMessageProcessor = new PullMessageProcessor(this);
         this.pullRequestHoldService = new PullRequestHoldService(this);
         this.messageArrivingListener = new NotifyMessageArrivingListener(this.pullRequestHoldService);
@@ -192,9 +204,10 @@ public class BrokerController {
         this.subscriptionGroupManager = new SubscriptionGroupManager(this);
         this.brokerOuterAPI = new BrokerOuterAPI(nettyClientConfig);
         this.filterServerManager = new FilterServerManager(this);
-
         this.slaveSynchronize = new SlaveSynchronize(this);
+        //endregion
 
+        //region 构建Broker需要的各种线程池队列，不同的后台线程和处理请求的线程放在不同的线程池里面去处理。有些Broker的功能是上面的组件自己的后台线程处理的。
         this.sendThreadPoolQueue = new LinkedBlockingQueue<Runnable>(this.brokerConfig.getSendThreadPoolQueueCapacity());
         this.pullThreadPoolQueue = new LinkedBlockingQueue<Runnable>(this.brokerConfig.getPullThreadPoolQueueCapacity());
         this.replyThreadPoolQueue = new LinkedBlockingQueue<Runnable>(this.brokerConfig.getReplyThreadPoolQueueCapacity());
@@ -203,7 +216,9 @@ public class BrokerController {
         this.consumerManagerThreadPoolQueue = new LinkedBlockingQueue<Runnable>(this.brokerConfig.getConsumerManagerThreadPoolQueueCapacity());
         this.heartbeatThreadPoolQueue = new LinkedBlockingQueue<Runnable>(this.brokerConfig.getHeartbeatThreadPoolQueueCapacity());
         this.endTransactionThreadPoolQueue = new LinkedBlockingQueue<Runnable>(this.brokerConfig.getEndTransactionPoolQueueCapacity());
+        //endregion
 
+        //region 构建一大堆Broker所需的功能组件，每个功能对应一个对象
         this.brokerStatsManager = new BrokerStatsManager(this.brokerConfig.getBrokerClusterName());
         this.setStoreHost(new InetSocketAddress(this.getBrokerConfig().getBrokerIP1(), this.getNettyServerConfig().getListenPort()));
 
@@ -213,6 +228,7 @@ public class BrokerController {
             BrokerPathConfigHelper.getBrokerConfigPath(),
             this.brokerConfig, this.nettyServerConfig, this.nettyClientConfig, this.messageStoreConfig
         );
+        //endregion
     }
 
     public BrokerConfig getBrokerConfig() {
