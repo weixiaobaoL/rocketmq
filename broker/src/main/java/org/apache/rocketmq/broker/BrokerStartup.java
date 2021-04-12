@@ -271,12 +271,18 @@ public class BrokerStartup {
             controller.getConfiguration().registerConfig(properties);
             //endregion
 
+            //region 核心逻辑: 进行BrokerController的初始化操作
             boolean initResult = controller.initialize();
+            //endregion
+
+            //region 非核心逻辑: BrokerController启动失败，就退出
             if (!initResult) {
                 controller.shutdown();
                 System.exit(-3);
             }
+            //endregion
 
+            //region 非核心逻辑: 注册一个JVM的关闭回调，JVM退出的时候，就会执行这个代码，释放一堆资源
             Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
                 private volatile boolean hasShutdown = false;
                 private AtomicInteger shutdownTimes = new AtomicInteger(0);
@@ -295,6 +301,7 @@ public class BrokerStartup {
                     }
                 }
             }, "ShutdownHook"));
+            //endregion
 
             return controller;
         } catch (Throwable e) {
