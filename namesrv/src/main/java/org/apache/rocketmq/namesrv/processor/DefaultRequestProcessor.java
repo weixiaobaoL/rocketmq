@@ -71,14 +71,16 @@ public class DefaultRequestProcessor extends AsyncNettyRequestProcessor implemen
     public RemotingCommand processRequest(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
 
+        //region 无用代码: 打印调试日志
         if (ctx != null) {
             log.debug("receive request, {} {} {}",
                 request.getCode(),
                 RemotingHelper.parseChannelRemoteAddr(ctx.channel()),
                 request);
         }
+        //endregion
 
-
+        //region 核心逻辑: 根据不同的请求类型用不同的处理过程
         switch (request.getCode()) {
             case RequestCode.PUT_KV_CONFIG:
                 return this.putKVConfig(ctx, request);
@@ -88,13 +90,16 @@ public class DefaultRequestProcessor extends AsyncNettyRequestProcessor implemen
                 return this.deleteKVConfig(ctx, request);
             case RequestCode.QUERY_DATA_VERSION:
                 return queryBrokerTopicConfig(ctx, request);
+            //region 注册Broker请求的处理
             case RequestCode.REGISTER_BROKER:
                 Version brokerVersion = MQVersion.value2Version(request.getVersion());
                 if (brokerVersion.ordinal() >= MQVersion.Version.V3_0_11.ordinal()) {
                     return this.registerBrokerWithFilterServer(ctx, request);
                 } else {
+                    //核心逻辑: 核心的注册处理逻辑
                     return this.registerBroker(ctx, request);
                 }
+                //endregion
             case RequestCode.UNREGISTER_BROKER:
                 return this.unregisterBroker(ctx, request);
             case RequestCode.GET_ROUTEINFO_BY_TOPIC:
@@ -126,6 +131,7 @@ public class DefaultRequestProcessor extends AsyncNettyRequestProcessor implemen
             default:
                 break;
         }
+        //endregion
         return null;
     }
 
@@ -277,6 +283,7 @@ public class DefaultRequestProcessor extends AsyncNettyRequestProcessor implemen
 
     public RemotingCommand registerBroker(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
+        //region 解析、验证注册请求
         final RemotingCommand response = RemotingCommand.createResponseCommand(RegisterBrokerResponseHeader.class);
         final RegisterBrokerResponseHeader responseHeader = (RegisterBrokerResponseHeader) response.readCustomHeader();
         final RegisterBrokerRequestHeader requestHeader =
@@ -296,7 +303,9 @@ public class DefaultRequestProcessor extends AsyncNettyRequestProcessor implemen
             topicConfigWrapper.getDataVersion().setCounter(new AtomicLong(0));
             topicConfigWrapper.getDataVersion().setTimestamp(0);
         }
+        //endregion
 
+        //region 核心逻辑: 调用了RouteInfoManager这个核心组件，用这个组件去注册Broker对象
         RegisterBrokerResult result = this.namesrvController.getRouteInfoManager().registerBroker(
             requestHeader.getClusterName(),
             requestHeader.getBrokerAddr(),
@@ -307,7 +316,9 @@ public class DefaultRequestProcessor extends AsyncNettyRequestProcessor implemen
             null,
             ctx.channel()
         );
+        //endregion
 
+        //region 构建响应对象
         responseHeader.setHaServerAddr(result.getHaServerAddr());
         responseHeader.setMasterAddr(result.getMasterAddr());
 
@@ -315,6 +326,7 @@ public class DefaultRequestProcessor extends AsyncNettyRequestProcessor implemen
         response.setBody(jsonValue);
         response.setCode(ResponseCode.SUCCESS);
         response.setRemark(null);
+        //endregion
         return response;
     }
 
