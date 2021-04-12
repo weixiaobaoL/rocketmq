@@ -930,10 +930,13 @@ public class BrokerController {
     }
 
     public void start() throws Exception {
+        //region 启动核心的消息存储组件，
         if (this.messageStore != null) {
             this.messageStore.start();
         }
+        //endregion
 
+        //region 非常核心逻辑: 启动了两个Netty服务器，这样就可以接受请求了。
         if (this.remotingServer != null) {
             this.remotingServer.start();
         }
@@ -941,15 +944,22 @@ public class BrokerController {
         if (this.fastRemotingServer != null) {
             this.fastRemotingServer.start();
         }
+        //endregion
 
+        //region FileWatchService服务组件的启动
         if (this.fileWatchService != null) {
             this.fileWatchService.start();
         }
+        //endregion
 
+        //region 核心逻辑: 这个是BrokerOuterAPI的核心组件，这个组件实际上是让Broker通过Netty客户端去发送请求出去给别人的。
+        //比如说Broker发送请求到NameServer去注册以及心跳，其实都是通过这个组件
         if (this.brokerOuterAPI != null) {
             this.brokerOuterAPI.start();
         }
+        //endregion
 
+        //region 一些功能组件的启动
         if (this.pullRequestHoldService != null) {
             this.pullRequestHoldService.start();
         }
@@ -967,7 +977,9 @@ public class BrokerController {
             handleSlaveSynchronize(messageStoreConfig.getBrokerRole());
             this.registerBrokerAll(true, false, true);
         }
+        //endregion
 
+        //region 核心逻辑: 往线程池里提及一个任务，让它给NameServer进行注册。也就是Broker启动后怎么去注册的。
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -979,7 +991,9 @@ public class BrokerController {
                 }
             }
         }, 1000 * 10, Math.max(10000, Math.min(brokerConfig.getRegisterNameServerPeriod(), 60000)), TimeUnit.MILLISECONDS);
+        //endregion
 
+        //region 一些功能组件的启动
         if (this.brokerStatsManager != null) {
             this.brokerStatsManager.start();
         }
@@ -987,6 +1001,7 @@ public class BrokerController {
         if (this.brokerFastFailure != null) {
             this.brokerFastFailure.start();
         }
+        //endregion
 
 
     }

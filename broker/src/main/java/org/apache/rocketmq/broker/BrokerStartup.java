@@ -61,7 +61,9 @@ public class BrokerStartup {
     public static BrokerController start(BrokerController controller) {
         try {
 
+            //region 核心逻辑: 把初始化好的BrokerController启动起来
             controller.start();
+            //endregion
 
             String tip = "The broker[" + controller.getBrokerConfig().getBrokerName() + ", "
                 + controller.getBrokerAddr() + "] boot success. serializeType=" + RemotingCommand.getSerializeTypeConfigInThisServer();
