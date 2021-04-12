@@ -122,10 +122,18 @@ public class BrokerOuterAPI {
         final int timeoutMills,
         final boolean compressed) {
 
+        //region 初始化一个List，用来放向每个NameServer注册的结果
         final List<RegisterBrokerResult> registerBrokerResultList = new CopyOnWriteArrayList<>();
+        //endregion
+
+        //region 在之前的初始化的时候就有一步，存储NameServerAddress的逻辑，这里是获取NameServer的所有地址
         List<String> nameServerAddressList = this.remotingClient.getNameServerAddressList();
+        //endregion
+
         if (nameServerAddressList != null && nameServerAddressList.size() > 0) {
 
+            //region 构建注册的网络请求
+            //region 构建请求头，在请求头里加入了很多Broker的基本信息。
             final RegisterBrokerRequestHeader requestHeader = new RegisterBrokerRequestHeader();
             requestHeader.setBrokerAddr(brokerAddr);
             requestHeader.setBrokerId(brokerId);
@@ -133,23 +141,34 @@ public class BrokerOuterAPI {
             requestHeader.setClusterName(clusterName);
             requestHeader.setHaServerAddr(haServerAddr);
             requestHeader.setCompressed(compressed);
+            //endregion
 
+            //region 构建请求体，在请求体里就会包含一些配置信息
             RegisterBrokerBody requestBody = new RegisterBrokerBody();
             requestBody.setTopicConfigSerializeWrapper(topicConfigWrapper);
             requestBody.setFilterServerList(filterServerList);
             final byte[] body = requestBody.encode(compressed);
             final int bodyCrc32 = UtilAll.crc32(body);
             requestHeader.setBodyCrc32(bodyCrc32);
+            //endregion
+            //endregion
+
+            //region 构建一个CountDownLatch对象，主要用于尽可能等待Broker注册到所有的NameServer操作执完成行。
             final CountDownLatch countDownLatch = new CountDownLatch(nameServerAddressList.size());
+            //endregion
             for (final String namesrvAddr : nameServerAddressList) {
                 brokerOuterExecutor.execute(new Runnable() {
                     @Override
                     public void run() {
                         try {
+                            //region 核心逻辑: 真正向NameServer执行注册的地方
                             RegisterBrokerResult result = registerBroker(namesrvAddr,oneway, timeoutMills,requestHeader,body);
+                            //endregion
+                            //region 注册完了以后把注册结果存放到List里面去
                             if (result != null) {
                                 registerBrokerResultList.add(result);
                             }
+                            //endregion
 
                             log.info("register broker[{}]to name server {} OK", brokerId, namesrvAddr);
                         } catch (Exception e) {
@@ -161,10 +180,12 @@ public class BrokerOuterAPI {
                 });
             }
 
+            //region CountDownLatch尽可能的等待Broker向所有的NameServer注册操作。
             try {
                 countDownLatch.await(timeoutMills, TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
             }
+            //endregion
         }
 
         return registerBrokerResultList;

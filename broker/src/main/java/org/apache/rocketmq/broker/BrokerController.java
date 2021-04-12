@@ -1025,8 +1025,11 @@ public class BrokerController {
     }
 
     public synchronized void registerBrokerAll(final boolean checkOrderConfig, boolean oneway, boolean forceRegister) {
+        //region 非核心逻辑: 构建TopicConfigWrapper对象，估计是和配置有关的对象
         TopicConfigSerializeWrapper topicConfigWrapper = this.getTopicConfigManager().buildTopicConfigSerializeWrapper();
+        //endregion
 
+        //region topic配置相关的东西.应该是初始化一些配置表，然后后面使用的时候可以直接读取数据。
         if (!PermName.isWriteable(this.getBrokerConfig().getBrokerPermission())
             || !PermName.isReadable(this.getBrokerConfig().getBrokerPermission())) {
             ConcurrentHashMap<String, TopicConfig> topicConfigTable = new ConcurrentHashMap<String, TopicConfig>();
@@ -1038,7 +1041,9 @@ public class BrokerController {
             }
             topicConfigWrapper.setTopicConfigTable(topicConfigTable);
         }
+        //endregion
 
+        //region 核心的注册逻辑: 先判断是否需要注册，如果需要就进行具体的注册逻辑
         if (forceRegister || needRegister(this.brokerConfig.getBrokerClusterName(),
             this.getBrokerAddr(),
             this.brokerConfig.getBrokerName(),
@@ -1046,10 +1051,12 @@ public class BrokerController {
             this.brokerConfig.getRegisterBrokerTimeoutMills())) {
             doRegisterBrokerAll(checkOrderConfig, oneway, topicConfigWrapper);
         }
+        //endregion
     }
 
     private void doRegisterBrokerAll(boolean checkOrderConfig, boolean oneway,
         TopicConfigSerializeWrapper topicConfigWrapper) {
+        //region 核心逻辑: 核心注册逻辑，通过brokerOuterAPI去发送请求给NameServer。完成了Broker的注册，然后可以获取注册结果，这里得到的是一个List，因为Broker会把自己注册到所有的NameServer上去。
         List<RegisterBrokerResult> registerBrokerResultList = this.brokerOuterAPI.registerBrokerAll(
             this.brokerConfig.getBrokerClusterName(),
             this.getBrokerAddr(),
@@ -1061,7 +1068,9 @@ public class BrokerController {
             oneway,
             this.brokerConfig.getRegisterBrokerTimeoutMills(),
             this.brokerConfig.isCompressedRegister());
+        //endregion
 
+        //region 对注册结果进行处理，这里的处理逻辑和MasterHAServer之类的有关。
         if (registerBrokerResultList.size() > 0) {
             RegisterBrokerResult registerBrokerResult = registerBrokerResultList.get(0);
             if (registerBrokerResult != null) {
@@ -1076,6 +1085,7 @@ public class BrokerController {
                 }
             }
         }
+        //endregion
     }
 
     private boolean needRegister(final String clusterName,
