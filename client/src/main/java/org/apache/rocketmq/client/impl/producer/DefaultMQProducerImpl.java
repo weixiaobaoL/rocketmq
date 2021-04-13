@@ -571,9 +571,13 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 //region 核心逻辑: 选择一个MessageQueue用于发送消息
                 MessageQueue mqSelected = this.selectOneMessageQueue(topicPublishInfo, lastBrokerName);
                 //endregion
+
                 if (mqSelected != null) {
                     mq = mqSelected;
+                    //region 获取MessageQueue的BrokerName
                     brokersSent[times] = mq.getBrokerName();
+                    //endregion
+
                     try {
                         beginTimestampPrev = System.currentTimeMillis();
                         if (times > 0) {
@@ -586,9 +590,16 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                             break;
                         }
 
+                        //region 核心逻辑: 实际发送消息到Broker上去
                         sendResult = this.sendKernelImpl(msg, mq, communicationMode, sendCallback, topicPublishInfo, timeout - costTime);
+                        //endregion
+
+                        //region 估计是用于统计broker的响应速度相关的逻辑
                         endTimestamp = System.currentTimeMillis();
                         this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false);
+                        //endregion
+
+                        //region 判断是否可以返回结果，或者重试发送消息
                         switch (communicationMode) {
                             case ASYNC:
                                 return null;
@@ -605,6 +616,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                             default:
                                 break;
                         }
+                        //endregion
                     } catch (RemotingException e) {
                         endTimestamp = System.currentTimeMillis();
                         this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, true);
@@ -723,13 +735,22 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         final TopicPublishInfo topicPublishInfo,
         final long timeout) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         long beginStartTime = System.currentTimeMillis();
+        //region 通过本地缓存区获取Broker的对应的地址
         String brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
+        //endregion
+
+        //region 如果本地缓存找不到，那么就去NameServer去拉取对应的Broker地址，并缓存起来，从缓存里面再去获取
         if (null == brokerAddr) {
             tryToFindTopicPublishInfo(mq.getTopic());
             brokerAddr = this.mQClientFactory.findBrokerAddressInPublish(mq.getBrokerName());
         }
+        //endregion
 
         SendMessageContext context = null;
+        //如果找不到就报错
+        //用自己的方式去封装了一个Request请求出来，这里涉及到了各种信息的封装，包括了请求头，还有一大堆所有你需要的数据，都封装在Request里了。
+        //大体上包括了给消息分配全局唯一ID、对超过4KB的消息体进行压缩，在消息Request中包含了生产者组、Topic名称、Topic的MessageQueue数量、
+        // MessageQueue的ID、消息发送时间、消息的flag、消息扩展属性、消息重试次数、是否是批量发送的消息、如果是事务消息则带上prepared标记，等等。
         if (brokerAddr != null) {
             brokerAddr = MixAll.brokerVIPChannel(this.defaultMQProducer.isSendMessageWithVIPChannel(), brokerAddr);
 
