@@ -557,6 +557,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         //region 核心逻辑: 通过Topic获取对应的路由信息, 先看本地缓存 是否存在，不存在再去NameServer拉取对应的路由信息并缓存起来
         TopicPublishInfo topicPublishInfo = this.tryToFindTopicPublishInfo(msg.getTopic());
         //endregion
+
         if (topicPublishInfo != null && topicPublishInfo.ok()) {
             boolean callTimeout = false;
             MessageQueue mq = null;
@@ -567,7 +568,9 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             String[] brokersSent = new String[timesTotal];
             for (; times < timesTotal; times++) {
                 String lastBrokerName = null == mq ? null : mq.getBrokerName();
+                //region 核心逻辑: 选择一个MessageQueue用于发送消息
                 MessageQueue mqSelected = this.selectOneMessageQueue(topicPublishInfo, lastBrokerName);
+                //endregion
                 if (mqSelected != null) {
                     mq = mqSelected;
                     brokersSent[times] = mq.getBrokerName();
@@ -652,10 +655,13 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 }
             }
 
+            //region 发送成功，返回SendResult对象
             if (sendResult != null) {
                 return sendResult;
             }
+            //endregion
 
+            //region 处理异常
             String info = String.format("Send [%d] times, still failed, cost [%d]ms, Topic: %s, BrokersSent: %s",
                 times,
                 System.currentTimeMillis() - beginTimestampFirst,
@@ -680,6 +686,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             }
 
             throw mqClientException;
+            //endregion
         }
 
         validateNameServerSetting();
