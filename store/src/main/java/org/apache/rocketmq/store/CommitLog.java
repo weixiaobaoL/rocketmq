@@ -556,11 +556,12 @@ public class CommitLog {
     }
 
     public CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner msg) {
-        // Set the storage time
+        //region Set the storage time
         msg.setStoreTimestamp(System.currentTimeMillis());
-        // Set the message body BODY CRC (consider the most appropriate setting
-        // on the client)
+        //endregion
+        //region Set the message body BODY CRC (consider the most appropriate setting on the client)
         msg.setBodyCRC(UtilAll.crc32(msg.getBody()));
+        //endregion
         // Back to Results
         AppendMessageResult result = null;
 
@@ -570,6 +571,8 @@ public class CommitLog {
         int queueId = msg.getQueueId();
 
         final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
+
+        //region 对延迟消息进行配置，这里可以知道延迟消息只支持TRANSACTION_NOT_TYPE，TRANSACTION_COMMIT_TYPE这两个类型
         if (tranType == MessageSysFlag.TRANSACTION_NOT_TYPE
                 || tranType == MessageSysFlag.TRANSACTION_COMMIT_TYPE) {
             // Delay Delivery
@@ -590,11 +593,13 @@ public class CommitLog {
                 msg.setQueueId(queueId);
             }
         }
+        //endregion
 
         long elapsedTimeInLock = 0;
         MappedFile unlockMappedFile = null;
         MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
 
+        //region 核心逻辑: CommitLog的提交
         putMessageLock.lock(); //spin or ReentrantLock ,depending on store config
         try {
             long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
@@ -613,7 +618,9 @@ public class CommitLog {
                 return CompletableFuture.completedFuture(new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, null));
             }
 
+            //region 核心逻辑: 添加CommitLog日志消息
             result = mappedFile.appendMessage(msg, this.appendMessageCallback);
+            //endregion
             switch (result.getStatus()) {
                 case PUT_OK:
                     break;
@@ -646,6 +653,7 @@ public class CommitLog {
         } finally {
             putMessageLock.unlock();
         }
+        //endregion
 
         if (elapsedTimeInLock > 500) {
             log.warn("[NOTIFYME]putMessage in lock cost time(ms)={}, bodyLength={} AppendMessageResult={}", elapsedTimeInLock, msg.getBody().length, result);
@@ -661,7 +669,9 @@ public class CommitLog {
         storeStatsService.getSinglePutMessageTopicTimesTotal(msg.getTopic()).incrementAndGet();
         storeStatsService.getSinglePutMessageTopicSizeTotal(topic).addAndGet(result.getWroteBytes());
 
+        //region 核心逻辑: CommitLog的刷盘(同步刷盘和异步刷盘两种)
         CompletableFuture<PutMessageStatus> flushResultFuture = submitFlushRequest(result, msg);
+        //endregion
         CompletableFuture<PutMessageStatus> replicaResultFuture = submitReplicaRequest(result, msg);
         return flushResultFuture.thenCombine(replicaResultFuture, (flushStatus, replicaStatus) -> {
             if (flushStatus != PutMessageStatus.PUT_OK) {
@@ -901,13 +911,19 @@ public class CommitLog {
         storeStatsService.getSinglePutMessageTopicTimesTotal(msg.getTopic()).incrementAndGet();
         storeStatsService.getSinglePutMessageTopicSizeTotal(topic).addAndGet(result.getWroteBytes());
 
+        //region 如何进行刷盘
         handleDiskFlush(result, putMessageResult, msg);
+        //endregion
+        //region 如何进行消息同步给Slave Broker
         handleHA(result, putMessageResult, msg);
+        //endregion
 
         return putMessageResult;
     }
 
     public CompletableFuture<PutMessageStatus> submitFlushRequest(AppendMessageResult result, MessageExt messageExt) {
+        //判断刷盘的方式---默认值为FlushDiskType.ASYNC_FLUSH 异步刷盘的方式
+        //通过配置文件可以配置刷盘的方式，默认的刷盘方式为异步刷盘方式(根据官网的说明如果使用防止消息的丢失可以使用同步刷盘方式但是同步刷盘会影响并发)
         // Synchronization flush
         if (FlushDiskType.SYNC_FLUSH == this.defaultMessageStore.getMessageStoreConfig().getFlushDiskType()) {
             final GroupCommitService service = (GroupCommitService) this.flushCommitLogService;
@@ -1427,7 +1443,9 @@ public class CommitLog {
                         // two times the flush
                         boolean flushOK = CommitLog.this.mappedFileQueue.getFlushedWhere() >= req.getNextOffset();
                         for (int i = 0; i < 2 && !flushOK; i++) {
+                            //region 写入内存的数据刷入到磁盘文件
                             CommitLog.this.mappedFileQueue.flush(0);
+                            //endregion
                             flushOK = CommitLog.this.mappedFileQueue.getFlushedWhere() >= req.getNextOffset();
                         }
 

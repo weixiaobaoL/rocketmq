@@ -202,10 +202,12 @@ public class MappedFile extends ReferenceResource {
 
         int currentPos = this.wrotePosition.get();
 
+        //当前偏移量和文件大小做比较
         if (currentPos < this.fileSize) {
             ByteBuffer byteBuffer = writeBuffer != null ? writeBuffer.slice() : this.mappedByteBuffer.slice();
             byteBuffer.position(currentPos);
             AppendMessageResult result;
+            //同样这里区分了处理批量消息和单个消息
             if (messageExt instanceof MessageExtBrokerInner) {
                 //region 核心逻辑: 把消息追加到MappedFile映射的一块内存里去
                 result = cb.doAppend(this.getFileFromOffset(), byteBuffer, this.fileSize - currentPos, (MessageExtBrokerInner) messageExt);
@@ -280,7 +282,9 @@ public class MappedFile extends ReferenceResource {
                     if (writeBuffer != null || this.fileChannel.position() != 0) {
                         this.fileChannel.force(false);
                     } else {
+                        //region 写入内存的数据刷入到磁盘文件
                         this.mappedByteBuffer.force();
+                        //endregion
                     }
                 } catch (Throwable e) {
                     log.error("Error occurred when force data to disk.", e);

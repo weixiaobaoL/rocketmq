@@ -427,7 +427,9 @@ public class MappedFileQueue {
         MappedFile mappedFile = this.findMappedFileByOffset(this.flushedWhere, this.flushedWhere == 0);
         if (mappedFile != null) {
             long tmpTimeStamp = mappedFile.getStoreTimestamp();
+            //region 写入内存的数据刷入到磁盘文件
             int offset = mappedFile.flush(flushLeastPages);
+            //endregion
             long where = mappedFile.getFileFromOffset() + offset;
             result = where == this.flushedWhere;
             this.flushedWhere = where;

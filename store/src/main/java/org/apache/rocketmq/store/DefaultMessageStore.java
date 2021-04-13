@@ -416,18 +416,24 @@ public class DefaultMessageStore implements MessageStore {
 
     @Override
     public CompletableFuture<PutMessageResult> asyncPutMessage(MessageExtBrokerInner msg) {
+        //region 检测存储状态
         PutMessageStatus checkStoreStatus = this.checkStoreStatus();
         if (checkStoreStatus != PutMessageStatus.PUT_OK) {
             return CompletableFuture.completedFuture(new PutMessageResult(checkStoreStatus, null));
         }
+        //endregion
 
+        //region 校验消息的topic和Properties
         PutMessageStatus msgCheckStatus = this.checkMessage(msg);
         if (msgCheckStatus == PutMessageStatus.MESSAGE_ILLEGAL) {
             return CompletableFuture.completedFuture(new PutMessageResult(msgCheckStatus, null));
         }
+        //endregion
 
         long beginTime = this.getSystemClock().now();
+        //region 核心逻辑: 消息处理
         CompletableFuture<PutMessageResult> putResultFuture = this.commitLog.asyncPutMessage(msg);
+        //endregion
 
         putResultFuture.thenAccept((result) -> {
             long elapsedTime = this.getSystemClock().now() - beginTime;
