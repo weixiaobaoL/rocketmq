@@ -111,23 +111,34 @@ public class RouteInfoManager {
         RegisterBrokerResult result = new RegisterBrokerResult();
         try {
             try {
+                //region 添加一个写锁，同一时间只能有一个线程可以做下面的操作
                 this.lock.writeLock().lockInterruptibly();
+                //endregion
 
+                //region 根据clusterName的获取一个brokerName的set集合
                 Set<String> brokerNames = this.clusterAddrTable.get(clusterName);
                 if (null == brokerNames) {
                     brokerNames = new HashSet<String>();
                     this.clusterAddrTable.put(clusterName, brokerNames);
                 }
+                //endregion
+
+                //region 把当前需要注册的BrokerName放入上面找到的set集合里面去。就是维护一个集群里面有哪些broker存在的set数据结构。因为是set所以心跳检测的时候也不会影响整体结构。
                 brokerNames.add(brokerName);
+                //endregion
 
                 boolean registerFirst = false;
 
+                //region 核心逻辑: Broker注册过程如果第一次发送注册请求，那么就会封装一个BrokerData放入brokerAddrTable这个路由数据表里去。如果后续每隔30s发送注册请求作为心跳检测，这里不会有印象。
                 BrokerData brokerData = this.brokerAddrTable.get(brokerName);
                 if (null == brokerData) {
                     registerFirst = true;
                     brokerData = new BrokerData(clusterName, brokerName, new HashMap<Long, String>());
                     this.brokerAddrTable.put(brokerName, brokerData);
                 }
+                //endregion
+
+                //region 这里主要是对路由数据做一些处理的。
                 Map<Long, String> brokerAddrsMap = brokerData.getBrokerAddrs();
                 //Switch slave to master: first remove <1, IP:PORT> in namesrv, then add <0, IP:PORT>
                 //The same IP:PORT must only have one record in brokerAddrTable
@@ -155,17 +166,23 @@ public class RouteInfoManager {
                         }
                     }
                 }
+                //endregion
 
+                //region 核心逻辑: 这就是每隔30s发送注册请求作为心跳的时候，最核心的处理逻辑。
+                //每隔30s都会封装一个新的BrokerLiveInfo放入brokerLiveTable里。这个BrokerLiveInfo里，就有一个当前时间戳，代表最近一次心跳检测的时间。
+                //这就是Broker每隔3os发送注册请求作为心跳的处理逻辑
                 BrokerLiveInfo prevBrokerLiveInfo = this.brokerLiveTable.put(brokerAddr,
                     new BrokerLiveInfo(
-                        System.currentTimeMillis(),
+                        System.currentTimeMillis(),//这次注册的时间，用于心跳检测
                         topicConfigWrapper.getDataVersion(),
                         channel,
                         haServerAddr));
                 if (null == prevBrokerLiveInfo) {
                     log.info("new broker registered, {} HAServer: {}", brokerAddr, haServerAddr);
                 }
+                //endregion
 
+                //region filter server做的特殊处理
                 if (filterServerList != null) {
                     if (filterServerList.isEmpty()) {
                         this.filterServerTable.remove(brokerAddr);
@@ -173,7 +190,9 @@ public class RouteInfoManager {
                         this.filterServerTable.put(brokerAddr, filterServerList);
                     }
                 }
+                //endregion
 
+                //region 查找当前Broker的MasterBroker的地址，放入返回结果中
                 if (MixAll.MASTER_ID != brokerId) {
                     String masterAddr = brokerData.getBrokerAddrs().get(MixAll.MASTER_ID);
                     if (masterAddr != null) {
@@ -184,6 +203,7 @@ public class RouteInfoManager {
                         }
                     }
                 }
+                //endregion
             } finally {
                 this.lock.writeLock().unlock();
             }
@@ -427,16 +447,26 @@ public class RouteInfoManager {
     }
 
     public void scanNotActiveBroker() {
+        //region 获取brokerLiveTable的迭代器对象，进行每一个BrokerLiveInfo的心跳检测
         Iterator<Entry<String, BrokerLiveInfo>> it = this.brokerLiveTable.entrySet().iterator();
+        //endregion
+
         while (it.hasNext()) {
+            //region 获取上一次发送注册/心跳的时间
             Entry<String, BrokerLiveInfo> next = it.next();
             long last = next.getValue().getLastUpdateTimestamp();
+            //endregion
+
+            //region 核心逻辑: 根据上一次的心跳时间+broker的超时时间(没法改的2分钟)和当前系统时间做对比。也就是Broker两分钟没法心跳，就默认它已经死了
             if ((last + BROKER_CHANNEL_EXPIRED_TIME) < System.currentTimeMillis()) {
                 RemotingUtil.closeChannel(next.getValue().getChannel());
                 it.remove();
                 log.warn("The broker channel expired, {} {}ms", next.getKey(), BROKER_CHANNEL_EXPIRED_TIME);
+                //region 把这个Broker从路由数据表里剔除出去
                 this.onChannelDestroy(next.getKey(), next.getValue().getChannel());
+                //endregion
             }
+            //endregion
         }
     }
 

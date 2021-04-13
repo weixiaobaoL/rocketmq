@@ -88,11 +88,11 @@ public class NamesrvController {
             Executors.newFixedThreadPool(nettyServerConfig.getServerWorkerThreads(), new ThreadFactoryImpl("RemotingExecutorThread_"));
         //endregion
 
-        //region 主要是注册Processor到Netty服务器中，这个Processor主要就是用于请求处理器，是NameServer用来处理网络请求的组件
+        //region 核心逻辑: 主要是注册Processor到Netty服务器中，这个Processor主要就是用于请求处理器，是NameServer用来处理网络请求的组件
         this.registerProcessor();
         //endregion
 
-        //region 启动一个后台线程，执行定时任务。根据名字猜测是和扫描哪些Broker没法送心跳。
+        //region 核心逻辑: 启动一个后台线程，执行定时任务。每隔10s定时扫描不活跃的Broker。也就是心跳检查的定时任务
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
