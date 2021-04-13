@@ -608,6 +608,10 @@ public class MQClientInstance {
             if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
                     TopicRouteData topicRouteData;
+
+                    //region 核心逻辑: 拉取对应的Topic路由信息
+                    //FIXME: 这里的org.apache.rocketmq.client.impl.producer.DefaultMQProducerImpl.tryToFindTopicPublishInfo
+                    // 这个方法有某些情况下会同时使用下面两个拉取TopicRouteData的方法，这两个方法有什么区别
                     if (isDefault && defaultMQProducer != null) {
                         topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(defaultMQProducer.getCreateTopicKey(),
                             1000 * 3);
@@ -621,15 +625,23 @@ public class MQClientInstance {
                     } else {
                         topicRouteData = this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(topic, 1000 * 3);
                     }
+                    //endregion
+
+                    //region 从Response响应对象里取出来自己需要的Topic路由数据，更新到自己本地缓存里去，更新的时候会做一些判断，比如Topic路由数据是否有改变过，等等，然后把Topic路由数据放本地缓存就可以了。
                     if (topicRouteData != null) {
                         TopicRouteData old = this.topicRouteTable.get(topic);
+                        //region 判断缓存和NameServer里的Topic信息是否有改动
                         boolean changed = topicRouteDataIsChange(old, topicRouteData);
+                        //endregion
                         if (!changed) {
+                            //region 判断Producer/Consumer中的Topic信息是否有所改动
                             changed = this.isNeedUpdateTopicRouteInfo(topic);
+                            //endregion
                         } else {
                             log.info("the topic[{}] route info changed, old[{}] ,new[{}]", topic, old, topicRouteData);
                         }
 
+                        //region 如果有变动，更新变动信息到缓存，Producer/Consumer里面去
                         if (changed) {
                             TopicRouteData cloneTopicRouteData = topicRouteData.cloneTopicRouteData();
 
@@ -667,9 +679,11 @@ public class MQClientInstance {
                             this.topicRouteTable.put(topic, cloneTopicRouteData);
                             return true;
                         }
+                        //endregion
                     } else {
                         log.warn("updateTopicRouteInfoFromNameServer, getTopicRouteInfoFromNameServer return null, Topic: {}. [{}]", topic, this.clientId);
                     }
+                    //endregion
                 } catch (MQClientException e) {
                     if (!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                         log.warn("updateTopicRouteInfoFromNameServer Exception", e);
