@@ -979,7 +979,7 @@ public class BrokerController {
         }
         //endregion
 
-        //region 核心逻辑: 往线程池里提及一个任务，让它给NameServer进行注册。也就是Broker启动后怎么去注册的。
+        //region 核心逻辑: 往线程池里提及一个任务，让它给NameServer进行注册。也就是Broker启动后怎么去注册的。默认情况下每30s就会发送一次注册信息(心跳检测)
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
