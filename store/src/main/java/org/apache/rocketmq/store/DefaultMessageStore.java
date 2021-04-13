@@ -288,7 +288,9 @@ public class DefaultMessageStore implements MessageStore {
         this.storeStatsService.start();
 
         this.createTempFile();
+        //region broker会启动一些后台线程，这个后台线程会自动去检查CommitLog、ConsumeQueue文件
         this.addScheduleTask();
+        //endregion
         this.shutdown = false;
     }
 
@@ -1308,12 +1310,14 @@ public class DefaultMessageStore implements MessageStore {
 
     private void addScheduleTask() {
 
+        //region 周期性的清理掉磁盘上的数据文件，也就是超过72小时的CommitLog、ConsumeQueue文件
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
                 DefaultMessageStore.this.cleanFilesPeriodically();
             }
         }, 1000 * 60, this.messageStoreConfig.getCleanResourceInterval(), TimeUnit.MILLISECONDS);
+        //endregion
 
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
