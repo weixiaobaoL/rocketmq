@@ -94,6 +94,9 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 import org.apache.rocketmq.remoting.exception.RemotingTimeoutException;
 import org.apache.rocketmq.remoting.exception.RemotingTooMuchRequestException;
 
+/**
+ * Producer的内部实现类，大部分Producer的业务逻辑，也就是发消息的逻辑，都在这个类中
+ */
 public class DefaultMQProducerImpl implements MQProducerInner {
     private final InternalLogger log = ClientLogger.getLog();
     private final Random random = new Random();
@@ -180,27 +183,40 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             case CREATE_JUST:
                 this.serviceState = ServiceState.START_FAILED;
 
+                //region 参数检查和异常情况处理的代码
                 this.checkConfig();
+                //endregion
 
                 if (!this.defaultMQProducer.getProducerGroup().equals(MixAll.CLIENT_INNER_PRODUCER_GROUP)) {
                     this.defaultMQProducer.changeInstanceNameToPID();
                 }
 
+                //region 获取MQClientInstance的实例mQClientFactory，没有则自动创建新的实例
                 this.mQClientFactory = MQClientManager.getInstance().getOrCreateMQClientInstance(this.defaultMQProducer, rpcHook);
+                //endregion
 
+                //region 在mQClientFactory中注册自己
                 boolean registerOK = mQClientFactory.registerProducer(this.defaultMQProducer.getProducerGroup(), this);
+                //endregion
+
+                //region 注册失败时的异常处理
                 if (!registerOK) {
                     this.serviceState = ServiceState.CREATE_JUST;
                     throw new MQClientException("The producer group[" + this.defaultMQProducer.getProducerGroup()
                         + "] has been created before, specify another name please." + FAQUrl.suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL),
                         null);
                 }
+                //endregion
 
+                //region 构建当前producer想要使用的TopicKey 和对应的TopicPublishInfo对象的映射
                 this.topicPublishInfoTable.put(this.defaultMQProducer.getCreateTopicKey(), new TopicPublishInfo());
+                //endregion
 
+                //region 核心逻辑 启动mQClientFactory
                 if (startFactory) {
                     mQClientFactory.start();
                 }
+                //endregion
 
                 log.info("the producer [{}] start OK. sendMessageWithVIPChannel={}", this.defaultMQProducer.getProducerGroup(),
                     this.defaultMQProducer.isSendMessageWithVIPChannel());
@@ -217,8 +233,11 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 break;
         }
 
+        //region 给所有Broker发送心跳
         this.mQClientFactory.sendHeartbeatToAllBrokerWithLock();
+        //endregion
 
+        //region 后台定时器，扫描超时的请求
         this.timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
@@ -229,6 +248,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 }
             }
         }, 1000 * 3, 1000);
+        //endregion
     }
 
     private void checkConfig() throws MQClientException {

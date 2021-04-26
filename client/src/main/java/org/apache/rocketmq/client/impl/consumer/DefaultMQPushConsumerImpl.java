@@ -579,21 +579,29 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                     this.defaultMQPushConsumer.changeInstanceNameToPID();
                 }
 
+                //region 核心逻辑: 获取一个和Netty Server做网络请求的连接client对象
                 this.mQClientFactory = MQClientManager.getInstance().getOrCreateMQClientInstance(this.defaultMQPushConsumer, this.rpcHook);
+                //endregion
 
+                //region 重平衡组件: 给Consumer做重平衡用的配置
                 this.rebalanceImpl.setConsumerGroup(this.defaultMQPushConsumer.getConsumerGroup());
                 this.rebalanceImpl.setMessageModel(this.defaultMQPushConsumer.getMessageModel());
                 this.rebalanceImpl.setAllocateMessageQueueStrategy(this.defaultMQPushConsumer.getAllocateMessageQueueStrategy());
                 this.rebalanceImpl.setmQClientFactory(this.mQClientFactory);
+                //endregion
 
+                //region 拉取消息的API的组件
                 this.pullAPIWrapper = new PullAPIWrapper(
                     mQClientFactory,
                     this.defaultMQPushConsumer.getConsumerGroup(), isUnitMode());
                 this.pullAPIWrapper.registerFilterMessageHook(filterMessageHookList);
+                //endregion
 
+                //region 存储和管理Consumer消费进度offset的组件
                 if (this.defaultMQPushConsumer.getOffsetStore() != null) {
                     this.offsetStore = this.defaultMQPushConsumer.getOffsetStore();
                 } else {
+                    //初始化消息进度, 如果消息消费是集群模式，那么消息进度保存在 Broker 上；如果是广播模式，那么消息进度存储在消费端
                     switch (this.defaultMQPushConsumer.getMessageModel()) {
                         case BROADCASTING:
                             this.offsetStore = new LocalFileOffsetStore(this.mQClientFactory, this.defaultMQPushConsumer.getConsumerGroup());
@@ -607,7 +615,9 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                     this.defaultMQPushConsumer.setOffsetStore(this.offsetStore);
                 }
                 this.offsetStore.load();
+                //endregion
 
+                //region 这里就是根据我们在Consumer使用的时候注册的消息处理器MessageListenerOrderly/MessageListenerConcurrently构建对应的consumerMessageService
                 if (this.getMessageListenerInner() instanceof MessageListenerOrderly) {
                     this.consumeOrderly = true;
                     this.consumeMessageService =
@@ -617,9 +627,13 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                     this.consumeMessageService =
                         new ConsumeMessageConcurrentlyService(this, (MessageListenerConcurrently) this.getMessageListenerInner());
                 }
+                //endregion
 
+                //region 启动我们消息处理器服务，这里启动并不是调用我们自定义的消息处理器，而是过期消息的定时处理
                 this.consumeMessageService.start();
+                //endregion
 
+                //region 向MQClientlnstance 注册消费者，并启动 MQClientlnstance，在一个 JVM 中的所有消费者、生产者持有同一个MQClientlnstance, MQClientlnstance 只会启动一次
                 boolean registerOK = mQClientFactory.registerConsumer(this.defaultMQPushConsumer.getConsumerGroup(), this);
                 if (!registerOK) {
                     this.serviceState = ServiceState.CREATE_JUST;
@@ -628,6 +642,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                         + "] has been created before, specify another name please." + FAQUrl.suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL),
                         null);
                 }
+                //endregion
 
                 mQClientFactory.start();
                 log.info("the consumer [{}] start OK.", this.defaultMQPushConsumer.getConsumerGroup());
@@ -644,10 +659,21 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 break;
         }
 
+        //region 更新topic注册数据
         this.updateTopicSubscribeInfoWhenSubscriptionChanged();
+        //endregion
+
+        //region 检测topic所在的broker是否能够连接成功
         this.mQClientFactory.checkClientInBroker();
+        //endregion
+
+        //region 触发向broker的心跳
         this.mQClientFactory.sendHeartbeatToAllBrokerWithLock();
+        //endregion
+
+        //region 直接触发一次平衡操作
         this.mQClientFactory.rebalanceImmediately();
+        //endregion
     }
 
     private void checkConfig() throws MQClientException {

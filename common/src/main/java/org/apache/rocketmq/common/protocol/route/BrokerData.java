@@ -23,6 +23,9 @@ import java.util.List;
 import java.util.Random;
 import org.apache.rocketmq.common.MixAll;
 
+/**
+ * 保存了集群名称cluster，brokerName和一个保存Broker物理地址的Map
+ */
 public class BrokerData implements Comparable<BrokerData> {
     private String cluster;
     private String brokerName;
