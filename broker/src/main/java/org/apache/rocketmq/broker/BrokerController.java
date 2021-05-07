@@ -193,6 +193,7 @@ public class BrokerController {
         this.topicConfigManager = new TopicConfigManager(this);
         //处理consumer发送请求过来拉去消息的
         this.pullMessageProcessor = new PullMessageProcessor(this);
+        //broker端没有数据的时候，consumer进行一些等待操作，防止不停地请求broker拉取数据
         this.pullRequestHoldService = new PullRequestHoldService(this);
         this.messageArrivingListener = new NotifyMessageArrivingListener(this.pullRequestHoldService);
         this.consumerIdsChangeListener = new DefaultConsumerIdsChangeListener(this);

@@ -32,6 +32,8 @@ public class PullConsumer {
         consumer.setNamesrvAddr("127.0.0.1:9876");
         consumer.start();
 
+        //1.获取这个Topic所在的所有MessageQueue，可以选择处理所有消息，还是某些消息
+        //pullConsumer要求用户自己处理遍历MessageQueue，保存维护Offset
         Set<MessageQueue> mqs = consumer.fetchSubscribeMessageQueues("broker-a");
         for (MessageQueue mq : mqs) {
             System.out.printf("Consume from the queue: %s%n", mq);
@@ -41,7 +43,10 @@ public class PullConsumer {
                     PullResult pullResult =
                         consumer.pullBlockIfNotFound(mq, null, getMessageQueueOffset(mq), 32);
                     System.out.printf("%s%n", pullResult);
+                    //2.维护Offsetstore
+                    //从一个MessageQueue里拉取消息的时候，要传入Offset参数。
                     putMessageQueueOffset(mq, pullResult.getNextBeginOffset());
+                    //3.根据不同的消息状态做不同的处理。
                     switch (pullResult.getPullStatus()) {
                         case FOUND:
                             break;
