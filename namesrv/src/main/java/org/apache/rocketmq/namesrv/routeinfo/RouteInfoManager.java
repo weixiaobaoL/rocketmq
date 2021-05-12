@@ -54,11 +54,14 @@ public class RouteInfoManager {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     /**
      * 保存的是主题和队列信息，其中每个队列信息对应的类QueueData中，还保存了brokerName。
+     * QueueData队列的长度等于这个Topic数据存储的MasterBroker的个数，QueueData里存储着BrokerName、读写queue的数量、同步标识等
      * 需要注意的是，这个brokerName并不真正是某个Broker的物理地址，它对应的一组Broker节点，包括一个主节点和若干个从节点。
      */
     private final HashMap<String/* topic */, List<QueueData>> topicQueueTable;
     /**
      * 保存了集群中每个brokerName对应Broker信息，每个Broker信息用一个BrokerData对象表示：
+     * 相同名称的Broker可能存在多台机器，一个Master和多个Slave
+     * 这个结构存储着一个BrokerName对应的属性信息，包括所属的ClusterName，一个MasterBroker和多个SlaveBroker的地址信息
      */
     private final HashMap<String/* brokerName */, BrokerData> brokerAddrTable;
     /**
@@ -66,7 +69,9 @@ public class RouteInfoManager {
      */
     private final HashMap<String/* clusterName */, Set<String/* brokerName */>> clusterAddrTable;
     /**
-     * 保存了每个Broker当前的动态信息，包括心跳更新时间，路由数据版本等等。
+     * 保存了每个Broker当前的动态信息(实时状态)，包括心跳更新时间，路由数据版本等等。
+     * 这个结构和BrokerAddrTable有关系，但是内容完全不同，这个结构中的Key是BrokerAddr，也就是对应着一台机器，
+     * BrokerAddrTable中的Key是BrokerName，多个机器的BrokerName可以相同。
      */
     private final HashMap<String/* brokerAddr */, BrokerLiveInfo> brokerLiveTable;
     /**
