@@ -242,6 +242,7 @@ public abstract class RebalanceImpl {
                 if (mqSet != null) {
                     boolean changed = this.updateProcessQueueTableInRebalance(topic, mqSet, isOrder);
                     if (changed) {
+                        //实现负载均衡的代码
                         this.messageQueueChanged(topic, mqSet, mqSet);
                         log.info("messageQueueChanged {} {} {} {}",
                             consumerGroup,

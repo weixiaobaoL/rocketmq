@@ -138,6 +138,9 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
+/**
+ * 核心逻辑: Broker的核心处理对象
+ */
 public class AdminBrokerProcessor extends AsyncNettyRequestProcessor implements NettyRequestProcessor {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private final BrokerController brokerController;
@@ -269,8 +272,9 @@ public class AdminBrokerProcessor extends AsyncNettyRequestProcessor implements 
         topicConfig.setPerm(requestHeader.getPerm());
         topicConfig.setTopicSysFlag(requestHeader.getTopicSysFlag() == null ? 0 : requestHeader.getTopicSysFlag());
 
+        //更新本地的TopicConfig
         this.brokerController.getTopicConfigManager().updateTopicConfig(topicConfig);
-
+        //向NameServer发送registerBroker请求
         this.brokerController.registerIncrementBrokerData(topicConfig, this.brokerController.getTopicConfigManager().getDataVersion());
 
         response.setCode(ResponseCode.SUCCESS);

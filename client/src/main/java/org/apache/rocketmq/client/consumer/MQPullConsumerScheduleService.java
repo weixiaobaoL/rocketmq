@@ -39,6 +39,7 @@ import org.apache.rocketmq.remoting.RPCHook;
  */
 public class MQPullConsumerScheduleService {
     private final InternalLogger log = ClientLogger.getLog();
+    //实现负载均衡的代码
     private final MessageQueueListener messageQueueListener = new MessageQueueListenerImpl();
     private final ConcurrentMap<MessageQueue, PullTaskImpl> taskTable =
         new ConcurrentHashMap<MessageQueue, PullTaskImpl>();
