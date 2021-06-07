@@ -51,12 +51,14 @@ public class NamesrvController {
     private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl(
         "NSScheduledThread"));
     private final KVConfigManager kvConfigManager;
+    // [核心对象]: 保存和维护集群的各种元数据
     private final RouteInfoManager routeInfoManager;
 
     private RemotingServer remotingServer;
 
     private BrokerHousekeepingService brokerHousekeepingService;
 
+    //initialize()方法中进行初始化new NettyRemotingServer(this.nettyServerConfig, this.brokerHousekeepingService)
     private ExecutorService remotingExecutor;
 
     private Configuration configuration;
@@ -75,6 +77,14 @@ public class NamesrvController {
         this.configuration.setStorePathFromConfig(this.namesrvConfig, "configStorePath");
     }
 
+    /**
+     * 启动了两个定时调度线程
+     *      一个用来扫描失效的Broker scanNotActiveBroker
+     *      一个用来打印配置信息 printAllPeriodically
+     * 然后启动用于通信的remotingServer:
+     *      用来监听一些端口，收到Broker、Client等发过来的请求后，根据请求的命令，调用不同的Processor来处理(this.registerProcessor的时候进行注册)
+     * @return
+     */
     public boolean initialize() {
 
         //region 大致推测可能就是在里面有一些kv配置数据，是这个组件管理的，然后这里可能就是从磁盘上加载了kv配置
@@ -85,7 +95,7 @@ public class NamesrvController {
         this.remotingServer = new NettyRemotingServer(this.nettyServerConfig, this.brokerHousekeepingService);
         //endregion
 
-        //region Netty服务器的核心工作线程池
+        //region Netty用来处理Request Processor的线程池，默认是8个线程的线程池
         this.remotingExecutor =
             Executors.newFixedThreadPool(nettyServerConfig.getServerWorkerThreads(), new ThreadFactoryImpl("RemotingExecutorThread_"));
         //endregion

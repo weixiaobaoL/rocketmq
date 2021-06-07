@@ -43,6 +43,8 @@ import org.slf4j.LoggerFactory;
 
 /*
 * 这个就是最为关键的name server 的启动类。
+* Name Server 的总控制逻辑都放在NameSrvController这个类中。
+* NameServer是集群的协调者，它只是简单地接受请求返回相应的状态。
 * */
 public class NamesrvStartup {
 
@@ -166,7 +168,9 @@ public class NamesrvStartup {
         MixAll.printObjectProperties(log, nettyServerConfig);
         //endregion
 
+        //region [核心逻辑] 构建NameSrvController对象
         final NamesrvController controller = new NamesrvController(namesrvConfig, nettyServerConfig);
+        //endregion
 
         // remember all configs to prevent discard
         controller.getConfiguration().registerConfig(properties);
@@ -174,6 +178,14 @@ public class NamesrvStartup {
         return controller;
     }
 
+    /**
+     * 核心是使用根据解析完配置参数生成的NameSrvController对象进行初始化
+     * 然后调用controller.start()让NameServer开始服务
+     * 同时会启动一个后台线程，当服务关闭的时候，进行释放资源
+     * @param controller
+     * @return
+     * @throws Exception
+     */
     public static NamesrvController start(final NamesrvController controller) throws Exception {
 
         //region 无用代码: 正常流程里面的非空判断逻辑

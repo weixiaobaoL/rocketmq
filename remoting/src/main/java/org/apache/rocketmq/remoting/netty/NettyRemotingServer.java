@@ -73,6 +73,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
     private final EventLoopGroup eventLoopGroupBoss;
     private final NettyServerConfig nettyServerConfig;
 
+    //默认是4个线程
     private final ExecutorService publicExecutor;
     private final ChannelEventListener channelEventListener;
 
@@ -213,7 +214,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
 
         //region 核心逻辑: 基于Netty的API去配置一个Netty服务器，也就是一个serverBootstrap的信息配置
         ServerBootstrap childHandler =
-            this.serverBootstrap.group(this.eventLoopGroupBoss, this.eventLoopGroupSelector)
+            this.serverBootstrap.group(this.eventLoopGroupBoss/*数量1*/, this.eventLoopGroupSelector/*数量3*/)
                 .channel(useEpoll() ? EpollServerSocketChannel.class : NioServerSocketChannel.class)
                 .option(ChannelOption.SO_BACKLOG, 1024)
                 .option(ChannelOption.SO_REUSEADDR, true)
