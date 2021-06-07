@@ -187,9 +187,12 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 this.checkConfig();
                 //endregion
 
+
+                //region 如果没有配置instance名字 那么或使用PID作为instance name
                 if (!this.defaultMQProducer.getProducerGroup().equals(MixAll.CLIENT_INNER_PRODUCER_GROUP)) {
                     this.defaultMQProducer.changeInstanceNameToPID();
                 }
+                //endregion
 
                 //region 获取MQClientInstance的实例mQClientFactory，没有则自动创建新的实例
                 this.mQClientFactory = MQClientManager.getInstance().getOrCreateMQClientInstance(this.defaultMQProducer, rpcHook);

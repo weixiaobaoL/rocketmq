@@ -74,21 +74,25 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
 
     /**
      * Just for testing or demo program
+     * 自动创建主题
      */
     private String createTopicKey = TopicValidator.AUTO_CREATE_TOPIC_KEY_TOPIC;
 
     /**
      * Number of queues to create per default topic.
+     * 默认一个主题分配的数量
      */
     private volatile int defaultTopicQueueNums = 4;
 
     /**
      * Timeout for sending messages.
+     * 默认的发送消息超时时间
      */
     private int sendMsgTimeout = 3000;
 
     /**
      * Compress message body threshold, namely, message body larger than 4k will be compressed on default.
+     * 消息体超过4K开启压缩
      */
     private int compressMsgBodyOverHowmuch = 1024 * 4;
 
@@ -96,6 +100,7 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
      * Maximum number of retry to perform internally before claiming sending failure in synchronous mode. </p>
      *
      * This may potentially cause message duplication which is up to application developers to resolve.
+     * 默认消息失败的时候重试次数
      */
     private int retryTimesWhenSendFailed = 2;
 
@@ -108,11 +113,13 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
 
     /**
      * Indicate whether to retry another broker on sending failure internally.
+     * 消息发送失败时是否发送给其他Broker
      */
     private boolean retryAnotherBrokerWhenNotStoreOK = false;
 
     /**
      * Maximum allowed message size in bytes.
+     * 一次消息的最大数量
      */
     private int maxMessageSize = 1024 * 1024 * 4; // 4M
 
