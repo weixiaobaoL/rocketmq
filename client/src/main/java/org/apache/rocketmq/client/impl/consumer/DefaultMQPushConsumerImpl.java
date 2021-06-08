@@ -575,6 +575,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                     this.defaultMQPushConsumer.getMessageModel(), this.defaultMQPushConsumer.isUnitMode());
                 this.serviceState = ServiceState.START_FAILED;
 
+                // 检查配置，consumerGroup，messageModel，allocateMessageQueueStrategy
                 this.checkConfig();
 
                 this.copySubscription();

@@ -219,6 +219,7 @@ public class MQClientInstance {
                     // Start rebalance service 启动Rebalance服务
                     this.rebalanceService.start();
                     // Start push service 启动Producer服务
+                    // FIXME: 在MQClient中启动的这个ProducerImpl有什么用
                     this.defaultMQProducer.getDefaultMQProducerImpl().start(false);
                     log.info("the client factory [{}] start OK", this.clientId);
                     this.serviceState = ServiceState.RUNNING;

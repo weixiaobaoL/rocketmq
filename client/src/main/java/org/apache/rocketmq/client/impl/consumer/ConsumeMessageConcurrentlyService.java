@@ -55,10 +55,15 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
     private final DefaultMQPushConsumer defaultMQPushConsumer;
     private final MessageListenerConcurrently messageListener;
     private final BlockingQueue<Runnable> consumeRequestQueue;
+    /**
+     * 主线程池，用来正常执行收到的消息。通过consumeThreadMin和consumeThreadMax进行调整
+     */
     private final ThreadPoolExecutor consumeExecutor;
     private final String consumerGroup;
 
+    //执行推迟消费的消息
     private final ScheduledExecutorService scheduledExecutorService;
+    // 谁送来定期清理超时消息(15分钟)
     private final ScheduledExecutorService cleanExpireMsgExecutors;
 
     public ConsumeMessageConcurrentlyService(DefaultMQPushConsumerImpl defaultMQPushConsumerImpl,

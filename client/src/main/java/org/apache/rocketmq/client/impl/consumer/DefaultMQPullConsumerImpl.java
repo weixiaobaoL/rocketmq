@@ -626,7 +626,9 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
             case CREATE_JUST:
                 this.serviceState = ServiceState.START_FAILED;
 
+                //region 检查配置，consumerGroup，messageModel，allocateMessageQueueStrategy
                 this.checkConfig();
+                //endregion
 
                 this.copySubscription();
 
@@ -646,9 +648,11 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
                     this.defaultMQPullConsumer.getConsumerGroup(), isUnitMode());
                 this.pullAPIWrapper.registerFilterMessageHook(filterMessageHookList);
 
+                //region 确定Offset，OffsetStore里存储的是当前消费者的消息在队列中的偏移量
                 if (this.defaultMQPullConsumer.getOffsetStore() != null) {
                     this.offsetStore = this.defaultMQPullConsumer.getOffsetStore();
                 } else {
+                    //根据MessageModel不同，Offset存储位置也会有区别
                     switch (this.defaultMQPullConsumer.getMessageModel()) {
                         case BROADCASTING:
                             this.offsetStore = new LocalFileOffsetStore(this.mQClientFactory, this.defaultMQPullConsumer.getConsumerGroup());
@@ -661,7 +665,9 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
                     }
                     this.defaultMQPullConsumer.setOffsetStore(this.offsetStore);
                 }
+                //endregion
 
+                //根据上面MessageModel的不同，进行对应的加载
                 this.offsetStore.load();
 
                 boolean registerOK = mQClientFactory.registerConsumer(this.defaultMQPullConsumer.getConsumerGroup(), this);
@@ -691,7 +697,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
     }
 
     private void checkConfig() throws MQClientException {
-        // check consumerGroup
+        // check consumerGroup 对group Name进行合法性校验
         Validators.checkGroup(this.defaultMQPullConsumer.getConsumerGroup());
 
         // consumerGroup
